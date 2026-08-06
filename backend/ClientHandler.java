@@ -98,6 +98,28 @@ public class ClientHandler extends Thread {
                         logout();
 
                         return;
+                        case "ONLINE":
+
+    for(String user : OnlineUsers.getOnlineUsers()){
+
+        writer.println(user);
+
+    }
+
+    writer.println("END");
+
+    break;
+
+    case "HISTORY":
+
+    HistoryService history =
+            new HistoryService();
+
+    history.printHistory(
+            username,
+            parts[1]);
+
+    break;
 
                 }
 
