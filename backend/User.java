@@ -1,4 +1,6 @@
-// User.javapackage backend;
+
+
+package backend;
 
 public class User {
 
