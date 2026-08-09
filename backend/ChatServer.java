@@ -9,7 +9,6 @@ public class ChatServer {
 
     public static final int PORT = 5000;
 
-    // Stores all online users
     public static ConcurrentHashMap<String, ClientHandler> onlineUsers =
             new ConcurrentHashMap<>();
 
@@ -26,18 +25,20 @@ public class ChatServer {
 
                 Socket socket = serverSocket.accept();
 
-                System.out.println("New Client Connected : "
-                        + socket.getInetAddress());
+                System.out.println(
+                    "New Client Connected : "
+                    + socket.getInetAddress()
+                );
 
-                ClientHandler client = new ClientHandler(socket);
+                ClientHandler client =
+                        new ClientHandler(socket);
 
                 client.start();
-
             }
 
         } catch (IOException e) {
+
             e.printStackTrace();
         }
-
     }
 }

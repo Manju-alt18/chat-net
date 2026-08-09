@@ -66,32 +66,32 @@ public class ClientHandler extends Thread {
 
                     case "MSG":
 
-                        String receiver = parts[1];
-                        String message = parts[2];
+    String receiver = parts[1];
+    String message = parts[2];
 
-                        Message msg = new Message(username,
-                                receiver,
-                                message);
+    Message msg = new Message(
+        username,
+        receiver,
+        message
+    );
 
-                        messageDAO.saveMessage(msg);
+    messageDAO.saveMessage(msg);
 
-                        ClientHandler client =
-                                ChatServer.onlineUsers.get(receiver);
+    ClientHandler client =
+        ChatServer.onlineUsers.get(receiver);
 
-                        if (client != null) {
+    if (client != null) {
 
-                            client.sendMessage(
-                                    username +
-                                    ": " +
-                                    message);
+        client.sendMessage(
+            username + ": " + message
+        );
 
-                        } else {
+    } else {
 
-                            writer.println("USER_OFFLINE");
+        writer.println("USER_OFFLINE");
+    }
 
-                        }
-
-                        break;
+    break;
 
                     case "LOGOUT":
 

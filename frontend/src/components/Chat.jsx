@@ -1,55 +1,125 @@
-// Chat.jsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
 import Message from "./Message";
+import GroupChat from "./GroupChat";
 import socket from "../services/socket";
 
 function Chat({ username }) {
 
     const [messages, setMessages] = useState([]);
-
     const [text, setText] = useState("");
-
     const [selectedChat, setSelectedChat] = useState("");
-
     const [chatType, setChatType] = useState("private");
 
     const users = ["Alice", "Bob", "Charlie"];
-
     const groups = ["Java Group", "Project Team"];
+
+    useEffect(() => {
+
+        socket.connect();
+
+        socket.receive((data) => {
+
+            console.log("Received from server:", data);
+
+            if (data.type === "MESSAGE") {
+
+                setMessages((old) => [
+                    ...old,
+                    {
+                        sender: data.sender || "Server",
+                        text: data.text || data.data,
+                        time: data.time ||
+                            new Date().toLocaleTimeString()
+                    }
+                ]);
+
+            }
+
+        });
+
+    }, []);
 
     const selectChat = (name, type) => {
 
         setSelectedChat(name);
-
         setChatType(type);
+        setMessages([]);
 
-        // Later load chat history
     };
 
     const sendMessage = () => {
 
-        socket.send({
+        if (!text.trim()) {
+            return;
+        }
 
-    type:chatType==="private"
-        ?"PRIVATE_MESSAGE"
-        :"GROUP_MESSAGE",
+        if (!selectedChat) {
+            alert("Please select a user or group first.");
+            return;
+        }
 
-    sender:username,
+        const message = {
 
-    receiver:selectedChat,
+            type: chatType === "private"
+                ? "PRIVATE_MESSAGE"
+                : "GROUP_MESSAGE",
 
-    message:text
+            sender: username,
 
-});
+            receiver:
+                chatType === "private"
+                    ? selectedChat
+                    : undefined,
 
-        setMessages([...messages, newMessage]);
+            groupName:
+                chatType === "group"
+                    ? selectedChat
+                    : undefined,
+
+            text: text,
+
+            time: new Date().toLocaleTimeString()
+
+        };
+
+        console.log("Sending:", message);
+
+        // Show message immediately in the chat window
+        setMessages((old) => [
+            ...old,
+            message
+        ]);
+
+        // Send to backend
+        socket.send(message);
 
         setText("");
 
-        // Later send to Java Socket Server
-
     };
+
+    if (chatType === "group" && selectedChat) {
+
+        return (
+
+            <div className="chat-container">
+
+                <Sidebar
+                    users={users}
+                    groups={groups}
+                    selectChat={selectChat}
+                />
+
+                <GroupChat
+                    username={username}
+                    groupName={selectedChat}
+                />
+
+            </div>
+
+        );
+
+    }
 
     return (
 
@@ -65,23 +135,45 @@ function Chat({ username }) {
 
                 <div className="chat-header">
 
-                    <h2>{selectedChat || "Select a Chat"}</h2>
+                    <h2>
+                        {selectedChat || "Select a Chat"}
+                    </h2>
 
-                    <span>{chatType}</span>
+                    <span>
+                        {selectedChat
+                            ? "Private Chat"
+                            : ""}
+                    </span>
 
                 </div>
 
                 <div className="messages">
 
-                    {messages.map((msg, index) => (
+                    {messages.length === 0 ? (
 
-                        <Message
-                            key={index}
-                            message={msg}
-                            currentUser={username}
-                        />
+                        <div
+                            style={{
+                                textAlign: "center",
+                                color: "#aaa",
+                                marginTop: "30px"
+                            }}
+                        >
+                            No messages yet
+                        </div>
 
-                    ))}
+                    ) : (
+
+                        messages.map((msg, index) => (
+
+                            <Message
+                                key={index}
+                                message={msg}
+                                currentUser={username}
+                            />
+
+                        ))
+
+                    )}
 
                 </div>
 
@@ -89,12 +181,29 @@ function Chat({ username }) {
 
                     <input
                         type="text"
-                        placeholder="Type a message..."
+                        placeholder={
+                            selectedChat
+                                ? "Type a message..."
+                                : "Select a chat first..."
+                        }
                         value={text}
-                        onChange={(e) => setText(e.target.value)}
+                        disabled={!selectedChat}
+                        onChange={(e) =>
+                            setText(e.target.value)
+                        }
+                        onKeyDown={(e) => {
+
+                            if (e.key === "Enter") {
+                                sendMessage();
+                            }
+
+                        }}
                     />
 
-                    <button onClick={sendMessage}>
+                    <button
+                        onClick={sendMessage}
+                        disabled={!selectedChat}
+                    >
                         Send
                     </button>
 
@@ -105,7 +214,6 @@ function Chat({ username }) {
         </div>
 
     );
-
 }
 
 export default Chat;
