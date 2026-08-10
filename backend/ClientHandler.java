@@ -2,6 +2,8 @@ package backend;
 
 import java.io.*;
 import java.net.Socket;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class ClientHandler extends Thread {
 
@@ -11,8 +13,8 @@ public class ClientHandler extends Thread {
 
     private String username;
 
-    UserDAO userDAO = new UserDAO();
-    MessageDAO messageDAO = new MessageDAO();
+    private UserDAO userDAO = new UserDAO();
+    private MessageDAO messageDAO = new MessageDAO();
 
     public ClientHandler(Socket socket) {
 
@@ -21,15 +23,17 @@ public class ClientHandler extends Thread {
         try {
 
             reader = new BufferedReader(
-                    new InputStreamReader(socket.getInputStream()));
+                    new InputStreamReader(
+                            socket.getInputStream()));
 
             writer = new PrintWriter(
-                    socket.getOutputStream(), true);
+                    socket.getOutputStream(),
+                    true);
 
         } catch (IOException e) {
+
             e.printStackTrace();
         }
-
     }
 
     @Override
@@ -37,131 +41,291 @@ public class ClientHandler extends Thread {
 
         try {
 
-            while (true) {
+            String input;
 
-                String input = reader.readLine();
+            while ((input = reader.readLine()) != null) {
 
-                if (input == null)
-                    break;
+                System.out.println(
+                        "Received from client: " + input);
 
-                String[] parts = input.split(":", 4);
+                String[] parts = input.split(":", 3);
 
                 String command = parts[0];
 
                 switch (command) {
 
+                    // =========================
+                    // LOGIN
+                    // =========================
                     case "LOGIN":
+
+                        if (parts.length < 2) {
+                            writer.println("LOGIN_FAILED");
+                            break;
+                        }
 
                         username = parts[1];
 
-                        ChatServer.onlineUsers.put(username, this);
+                        ChatServer.onlineUsers.put(
+                                username,
+                                this);
 
-                        userDAO.updateStatus(username, "ONLINE");
+                        System.out.println(
+                                username +
+                                " Logged In");
 
-                        writer.println("LOGIN_SUCCESS");
+                        System.out.println(
+                                "Online users: " +
+                                ChatServer.onlineUsers.keySet());
 
-                        System.out.println(username + " Logged In");
+                        try {
+
+                            userDAO.updateStatus(
+                                    username,
+                                    "ONLINE");
+
+                        } catch (Exception e) {
+
+                            System.out.println(
+                                    "Database status update failed: "
+                                    + e.getMessage());
+
+                        }
+
+                        writer.println(
+                                "LOGIN_SUCCESS");
 
                         break;
 
+
+                    // =========================
+                    // PRIVATE MESSAGE
+                    // =========================
                     case "MSG":
 
-    String receiver = parts[1];
-    String message = parts[2];
+                        if (parts.length < 3) {
 
-    Message msg = new Message(
-        username,
-        receiver,
-        message
-    );
+                            writer.println(
+                                    "INVALID_MESSAGE");
 
-    messageDAO.saveMessage(msg);
+                            break;
+                        }
 
-    ClientHandler client =
-        ChatServer.onlineUsers.get(receiver);
+                        String receiver = parts[1];
+                        String message = parts[2];
 
-    if (client != null) {
+                        System.out.println(
+                                "Message from " +
+                                username +
+                                " to " +
+                                receiver +
+                                ": " +
+                                message);
 
-        client.sendMessage(
-            username + ": " + message
-        );
+                        // Find receiver FIRST
+                        ClientHandler client =
+                                ChatServer.onlineUsers.get(
+                                        receiver);
 
-    } else {
+                        if (client != null) {
 
-        writer.println("USER_OFFLINE");
-    }
+                            String time =
+                                    LocalDateTime.now()
+                                            .format(
+                                                DateTimeFormatter
+                                                .ofPattern(
+                                                    "HH:mm:ss"));
 
-    break;
+                            String formattedMessage =
+                                    "MESSAGE:" +
+                                    username +
+                                    ":" +
+                                    message +
+                                    ":" +
+                                    time;
 
+                            // Send message to receiver
+                            client.sendMessage(
+                                    formattedMessage);
+
+                            System.out.println(
+                                    "Message delivered to "
+                                    + receiver);
+
+                            // Try saving to database
+                            // AFTER delivery
+                            try {
+
+                                Message msg =
+                                        new Message(
+                                                username,
+                                                receiver,
+                                                message);
+
+                                messageDAO.saveMessage(msg);
+
+                            } catch (Exception e) {
+
+                                System.out.println(
+                                        "Database save failed: "
+                                        + e.getMessage());
+
+                                // Do NOT disconnect user
+                            }
+
+                        } else {
+
+                            System.out.println(
+                                    receiver +
+                                    " is OFFLINE");
+
+                            writer.println(
+                                    "USER_OFFLINE");
+                        }
+
+                        break;
+
+
+                    // =========================
+                    // ONLINE USERS
+                    // =========================
+                    case "ONLINE":
+
+                        for (String user :
+                                ChatServer.onlineUsers.keySet()) {
+
+                            writer.println(
+                                    "USER:" + user);
+                        }
+
+                        writer.println("END");
+
+                        break;
+
+
+                    // =========================
+                    // HISTORY
+                    // =========================
+                    case "HISTORY":
+
+                        if (parts.length < 2) {
+                            break;
+                        }
+
+                        try {
+
+                            HistoryService history =
+                                    new HistoryService();
+
+                            history.printHistory(
+                                    username,
+                                    parts[1]);
+
+                        } catch (Exception e) {
+
+                            System.out.println(
+                                    "History error: "
+                                    + e.getMessage());
+
+                        }
+
+                        break;
+
+
+                    // =========================
+                    // LOGOUT
+                    // =========================
                     case "LOGOUT":
 
                         logout();
 
                         return;
-                        case "ONLINE":
 
-    for(String user : OnlineUsers.getOnlineUsers()){
 
-        writer.println(user);
+                    default:
 
-    }
+                        writer.println(
+                                "UNKNOWN_COMMAND");
 
-    writer.println("END");
-
-    break;
-
-    case "HISTORY":
-
-    HistoryService history =
-            new HistoryService();
-
-    history.printHistory(
-            username,
-            parts[1]);
-
-    break;
-
+                        break;
                 }
-
             }
 
-        } catch (Exception e) {
+        } catch (IOException e) {
+
+            System.out.println(
+                    username +
+                    " connection closed.");
 
             logout();
 
-        }
+        } catch (Exception e) {
 
+            e.printStackTrace();
+
+            logout();
+        }
     }
 
+
+    // =========================
+    // SEND MESSAGE
+    // =========================
     public void sendMessage(String msg) {
 
-        writer.println(msg);
+        if (writer != null) {
 
+            writer.println(msg);
+
+            writer.flush();
+
+            System.out.println(
+                    "Sending to " +
+                    username +
+                    ": " +
+                    msg);
+        }
     }
 
+
+    // =========================
+    // LOGOUT
+    // =========================
     private void logout() {
 
         try {
 
             if (username != null) {
 
-                ChatServer.onlineUsers.remove(username);
+                ChatServer.onlineUsers.remove(
+                        username);
 
-                userDAO.updateStatus(username,
-                        "OFFLINE");
+                try {
 
-                System.out.println(username + " Logged Out");
+                    userDAO.updateStatus(
+                            username,
+                            "OFFLINE");
 
+                } catch (Exception e) {
+
+                    System.out.println(
+                            "Database update failed.");
+                }
+
+                System.out.println(
+                        username +
+                        " Logged Out");
             }
 
-            socket.close();
+            if (socket != null &&
+                    !socket.isClosed()) {
+
+                socket.close();
+            }
 
         } catch (IOException e) {
 
             e.printStackTrace();
-
         }
-
     }
-
 }
