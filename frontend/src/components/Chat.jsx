@@ -1,208 +1,263 @@
 import { useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
 import Message from "./Message";
-import GroupChat from "./GroupChat";
 import socket from "../services/socket";
 
 function Chat({ username }) {
 
     const [messages, setMessages] = useState([]);
     const [text, setText] = useState("");
-    const [selectedChat, setSelectedChat] = useState("");
-    const [chatType, setChatType] = useState("private");
-
-    const users = ["Alice", "Bob", "Charlie"];
-    const groups = ["Java Group", "Project Team"];
+    const [selectedUser, setSelectedUser] = useState("");
 
     useEffect(() => {
 
-        socket.connect();
+        if (!username) {
+            console.log("No username available");
+            return;
+        }
+
+        console.log("Connecting as:", username);
+
+        socket.connect(username);
 
         socket.receive((data) => {
 
-            console.log("Received from server:", data);
+            console.log("================================");
+            console.log("MESSAGE FROM SERVER:", data);
+            console.log("================================");
 
-            if (data.type === "MESSAGE") {
+            // Login response
+            if (data === "LOGIN_SUCCESS") {
 
-                setMessages((old) => [
-                    ...old,
+                console.log(
+                    "Logged in successfully as",
+                    username
+                );
+
+                return;
+            }
+
+            // Receiver is offline
+            if (data === "USER_OFFLINE") {
+
+                alert("This user is offline.");
+                return;
+            }
+
+            // Message from another user
+            if (data.startsWith("MESSAGE:")) {
+
+                const parts = data.split(":");
+
+                const sender = parts[1];
+
+                const message =
+                    parts.slice(2).join(":");
+
+                console.log("Sender:", sender);
+                console.log("Message:", message);
+
+                setMessages((previousMessages) => [
+
+                    ...previousMessages,
+
                     {
-                        sender: data.sender || "Server",
-                        text: data.text || data.data,
-                        time: data.time ||
-                            new Date().toLocaleTimeString()
+                        sender: sender,
+                        text: message,
+                        time: new Date().toLocaleTimeString()
                     }
+
                 ]);
 
+                return;
             }
+
+            console.log(
+                "Other server response:",
+                data
+            );
 
         });
 
-    }, []);
+        return () => {
+            // Don't close the socket here if your
+            // app switches between chat components.
+        };
 
-    const selectChat = (name, type) => {
+    }, [username]);
 
-        setSelectedChat(name);
-        setChatType(type);
+
+    const selectUser = (user) => {
+
+        console.log("Selected user:", user);
+
+        setSelectedUser(user);
+
         setMessages([]);
 
     };
 
+
     const sendMessage = () => {
+
+        if (!selectedUser) {
+
+            alert("Please select a user.");
+
+            return;
+        }
 
         if (!text.trim()) {
             return;
         }
 
-        if (!selectedChat) {
-            alert("Please select a user or group first.");
-            return;
-        }
+        const messageText = text.trim();
 
-        const message = {
+        console.log(
+            "Sending message to:",
+            selectedUser
+        );
 
-            type: chatType === "private"
-                ? "PRIVATE_MESSAGE"
-                : "GROUP_MESSAGE",
+        console.log(
+            "Message:",
+            messageText
+        );
 
-            sender: username,
+        // Send to Java server
+        socket.send({
 
-            receiver:
-                chatType === "private"
-                    ? selectedChat
-                    : undefined,
+            type: "PRIVATE_MESSAGE",
 
-            groupName:
-                chatType === "group"
-                    ? selectedChat
-                    : undefined,
+            receiver: selectedUser,
 
-            text: text,
+            text: messageText
 
-            time: new Date().toLocaleTimeString()
+        });
 
-        };
+        // Show own message immediately
+        setMessages((previousMessages) => [
 
-        console.log("Sending:", message);
+            ...previousMessages,
 
-        // Show message immediately in the chat window
-        setMessages((old) => [
-            ...old,
-            message
+            {
+                sender: username,
+                text: messageText,
+                time: new Date().toLocaleTimeString()
+            }
+
         ]);
-
-        // Send to backend
-        socket.send(message);
 
         setText("");
 
     };
 
-    if (chatType === "group" && selectedChat) {
-
-        return (
-
-            <div className="chat-container">
-
-                <Sidebar
-                    users={users}
-                    groups={groups}
-                    selectChat={selectChat}
-                />
-
-                <GroupChat
-                    username={username}
-                    groupName={selectedChat}
-                />
-
-            </div>
-
-        );
-
-    }
 
     return (
 
         <div className="chat-container">
 
             <Sidebar
-                users={users}
-                groups={groups}
-                selectChat={selectChat}
+                selectUser={selectUser}
+                selectedUser={selectedUser}
             />
 
             <div className="chat-window">
 
+                {/* HEADER */}
+
                 <div className="chat-header">
 
-                    <h2>
-                        {selectedChat || "Select a Chat"}
-                    </h2>
+                    <div>
 
-                    <span>
-                        {selectedChat
-                            ? "Private Chat"
-                            : ""}
-                    </span>
+                        <h2>
+                            {selectedUser ||
+                                "Select a user"}
+                        </h2>
+
+                        {selectedUser && (
+                            <span>
+                                Private Chat
+                            </span>
+                        )}
+
+                    </div>
 
                 </div>
+
+
+                {/* MESSAGES */}
 
                 <div className="messages">
 
-                    {messages.length === 0 ? (
+                    {!selectedUser && (
 
-                        <div
-                            style={{
-                                textAlign: "center",
-                                color: "#aaa",
-                                marginTop: "30px"
-                            }}
-                        >
-                            No messages yet
+                        <div className="empty-chat">
+
+                            Select a user to start
+                            chatting.
+
                         </div>
-
-                    ) : (
-
-                        messages.map((msg, index) => (
-
-                            <Message
-                                key={index}
-                                message={msg}
-                                currentUser={username}
-                            />
-
-                        ))
 
                     )}
 
+
+                    {selectedUser &&
+                        messages.length === 0 && (
+
+                            <div className="empty-chat">
+
+                                No messages yet.
+
+                            </div>
+
+                        )}
+
+
+                    {messages.map(
+                        (message, index) => (
+
+                            <Message
+                                key={index}
+                                message={message}
+                                currentUser={username}
+                            />
+
+                        )
+                    )}
+
                 </div>
+
+
+                {/* MESSAGE INPUT */}
 
                 <div className="message-box">
 
                     <input
                         type="text"
-                        placeholder={
-                            selectedChat
-                                ? "Type a message..."
-                                : "Select a chat first..."
-                        }
                         value={text}
-                        disabled={!selectedChat}
+                        disabled={!selectedUser}
+                        placeholder={
+                            selectedUser
+                                ? "Type a message..."
+                                : "Select a user first"
+                        }
                         onChange={(e) =>
                             setText(e.target.value)
                         }
                         onKeyDown={(e) => {
 
                             if (e.key === "Enter") {
+
                                 sendMessage();
+
                             }
 
                         }}
                     />
 
                     <button
+                        disabled={!selectedUser}
                         onClick={sendMessage}
-                        disabled={!selectedChat}
                     >
                         Send
                     </button>

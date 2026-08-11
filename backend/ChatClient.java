@@ -1,19 +1,25 @@
-// ChatClient.java
 package backend;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.Scanner;
 
 public class ChatClient {
 
-    private static final String HOST = "localhost";
+    private static final String HOST = "127.0.0.1";
     private static final int PORT = 5000;
 
     public static void main(String[] args) {
 
-        try (
+        try {
+
             Socket socket = new Socket(HOST, PORT);
+
+            System.out.println("Connected to server.");
+            System.out.println("Server: " + socket.getRemoteSocketAddress());
 
             BufferedReader reader =
                     new BufferedReader(
@@ -25,22 +31,25 @@ public class ChatClient {
                             socket.getOutputStream(),
                             true);
 
-            Scanner scanner = new Scanner(System.in)
-        ) {
+            Scanner scanner = new Scanner(System.in);
 
-            System.out.println("=================================");
-            System.out.println("      JAVA CHAT CLIENT");
-            System.out.println("=================================");
+            // =========================
+            // LOGIN
+            // =========================
 
-            // Login
             System.out.print("Enter username: ");
 
-            String username = scanner.nextLine();
+            String username = scanner.nextLine().trim();
 
             writer.println("LOGIN:" + username);
 
-            // Thread for receiving messages
-            Thread receiveThread = new Thread(() -> {
+            System.out.println("Login request sent.");
+
+            // =========================
+            // RECEIVING THREAD
+            // =========================
+
+            Thread receiver = new Thread(() -> {
 
                 try {
 
@@ -49,21 +58,31 @@ public class ChatClient {
                     while ((message = reader.readLine()) != null) {
 
                         System.out.println();
-                        System.out.println("Received: " + message);
+                        System.out.println();
+                        System.out.println("========== MESSAGE ==========");
+                        System.out.println(message);
+                        System.out.println("=============================");
                         System.out.print("> ");
 
                     }
 
+                    System.out.println(
+                            "\nServer closed the connection.");
+
                 } catch (IOException e) {
 
                     System.out.println(
-                            "Disconnected from server.");
-
+                            "\nConnection lost: "
+                            + e.getMessage());
                 }
 
             });
 
-            receiveThread.start();
+            receiver.start();
+
+            // =========================
+            // COMMANDS
+            // =========================
 
             System.out.println();
             System.out.println("Logged in as: " + username);
@@ -74,33 +93,40 @@ public class ChatClient {
             System.out.println("ONLINE");
             System.out.println("HISTORY:username");
             System.out.println("LOGOUT");
-
             System.out.println();
 
-            // Send messages
+            // =========================
+            // SEND LOOP
+            // =========================
+
             while (true) {
 
                 System.out.print("> ");
 
                 String input = scanner.nextLine();
 
-                if (input.equalsIgnoreCase("LOGOUT")) {
-
-                    writer.println("LOGOUT");
-
-                    break;
+                if (input.trim().isEmpty()) {
+                    continue;
                 }
 
                 writer.println(input);
+                writer.flush();
+
+                if (input.equalsIgnoreCase("LOGOUT")) {
+                    break;
+                }
             }
+
+            socket.close();
+            scanner.close();
 
         } catch (IOException e) {
 
             System.out.println(
-                    "Unable to connect to server.");
+                    "Could not connect to server.");
 
             System.out.println(
-                    "Make sure ChatServer is running.");
+                    "Make sure the Java server is running.");
 
             e.printStackTrace();
         }
