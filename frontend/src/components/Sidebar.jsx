@@ -1,67 +1,70 @@
-// Sidebar.jsx
-import { useState } from "react";
+import React from "react";
 
-function Sidebar({ users, groups, selectChat }) {
-
-    const [search, setSearch] = useState("");
+function Sidebar({ users = [], selectUser, selectedUser }) {
 
     return (
-
         <div className="sidebar">
 
-            <h2>Chat App</h2>
+            <h2>Users</h2>
 
-            <input
-                type="text"
-                placeholder="Search..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-            />
+            <div className="user-list">
 
-            <h3>Online Users</h3>
+                {users.length === 0 ? (
 
-            <div className="list">
+                    <p className="no-users">
+                        No users available
+                    </p>
 
-                {users
-                    .filter(user =>
-                        user.toLowerCase().includes(search.toLowerCase())
-                    )
-                    .map((user, index) => (
+                ) : (
 
-                        <div
-                            key={index}
-                            className="list-item"
-                            onClick={() => selectChat(user, "private")}
-                        >
-                            🟢 {user}
-                        </div>
+                    users.map((user, index) => {
 
-                    ))}
+                        const username =
+                            typeof user === "string"
+                                ? user
+                                : user.username;
 
-            </div>
+                        return (
+                            <div
+                                key={index}
+                                className={
+                                    selectedUser === username
+                                        ? "user active"
+                                        : "user"
+                                }
+                                onClick={() =>
+                                    selectUser(username)
+                                }
+                            >
 
-            <h3>Groups</h3>
+                                <div className="user-avatar">
+                                    {username
+                                        ?.charAt(0)
+                                        ?.toUpperCase()}
+                                </div>
 
-            <div className="list">
+                                <div className="user-info">
 
-                {groups.map((group, index) => (
+                                    <span className="username">
+                                        {username}
+                                    </span>
 
-                    <div
-                        key={index}
-                        className="list-item"
-                        onClick={() => selectChat(group, "group")}
-                    >
-                        👥 {group}
-                    </div>
+                                    <span className="status">
+                                        Online
+                                    </span>
 
-                ))}
+                                </div>
+
+                            </div>
+                        );
+                    })
+
+                )}
 
             </div>
 
         </div>
-
     );
-
 }
 
 export default Sidebar;
