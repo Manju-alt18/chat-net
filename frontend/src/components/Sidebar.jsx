@@ -1,69 +1,58 @@
-import React from "react";
+import { useEffect, useState } from "react";
+import socket from "../services/socket";
 
-function Sidebar({ users = [], selectUser, selectedUser }) {
+// ASSUMPTION — server broadcasts something like "USERLIST:alice,bob,carol".
+// Confirm the exact format and adjust the parsing below to match.
+function Sidebar({ selectUser, selectedUser }) {
+
+    const [users, setUsers] = useState([]);
+
+    useEffect(() => {
+
+        const unsubscribe = socket.receive((data) => {
+
+            if (typeof data === "string" && data.startsWith("USERLIST:")) {
+
+                const list = data
+                    .slice("USERLIST:".length)
+                    .split(",")
+                    .map((u) => u.trim())
+                    .filter(Boolean);
+
+                setUsers(list);
+
+            }
+
+        });
+
+        return () => unsubscribe();
+
+    }, []);
 
     return (
+
         <div className="sidebar">
 
-            <h2>Users</h2>
+            <h3>Users</h3>
 
-            <div className="user-list">
+            {users.length === 0 && (
+                <div className="sidebar-empty">No users online.</div>
+            )}
 
-                {users.length === 0 ? (
-
-                    <p className="no-users">
-                        No users available
-                    </p>
-
-                ) : (
-
-                    users.map((user, index) => {
-
-                        const username =
-                            typeof user === "string"
-                                ? user
-                                : user.username;
-
-                        return (
-                            <div
-                                key={index}
-                                className={
-                                    selectedUser === username
-                                        ? "user active"
-                                        : "user"
-                                }
-                                onClick={() =>
-                                    selectUser(username)
-                                }
-                            >
-
-                                <div className="user-avatar">
-                                    {username
-                                        ?.charAt(0)
-                                        ?.toUpperCase()}
-                                </div>
-
-                                <div className="user-info">
-
-                                    <span className="username">
-                                        {username}
-                                    </span>
-
-                                    <span className="status">
-                                        Online
-                                    </span>
-
-                                </div>
-
-                            </div>
-                        );
-                    })
-
-                )}
-
-            </div>
+            <ul className="user-list">
+                {users.map((user) => (
+                    <li
+                        key={user}
+                        className={user === selectedUser ? "active" : ""}
+                        onClick={() => selectUser(user)}
+                    >
+                        {user}
+                    </li>
+                ))}
+            </ul>
 
         </div>
+
     );
 }
 

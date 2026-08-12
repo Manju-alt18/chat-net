@@ -1,38 +1,22 @@
-// Message.jsx
 function Message({ message, currentUser }) {
 
-    const mine = message.sender === currentUser;
+    const isOwnMessage = message.sender === currentUser;
 
     return (
 
-        <div
-            className={
-                mine
-                ? "message mine"
-                : "message other"
-            }
-        >
+        <div className={"message " + (isOwnMessage ? "own" : "other")}>
 
-            <div className="message-text">
+            {!isOwnMessage && (
+                <div className="message-sender">{message.sender}</div>
+            )}
 
-                {!mine &&
-                    <strong>
-                        {message.sender}
-                    </strong>
-                }
+            <div className="message-text">{message.text}</div>
 
-                <p>{message.text}</p>
-
-                <span className="time">
-                    {message.time}
-                </span>
-
-            </div>
+            <div className="message-time">{message.time}</div>
 
         </div>
 
     );
-
 }
 
 export default Message;

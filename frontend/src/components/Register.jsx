@@ -1,81 +1,111 @@
-// Register.jsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import socket from "../services/socket";
 
-function Register() {
+// NOTE: Registration protocol (REGISTER:/REGISTER_SUCCESS/REGISTER_FAIL)
+// is an ASSUMPTION based on the LOGIN pattern in socket.js. Confirm the
+// exact wire format against the Java server and adjust socket.js + here.
+function Register({ onRegisterSuccess, onGoToLogin }) {
 
-    const [fullname,setFullname]=useState("");
-    const [username,setUsername]=useState("");
-    const [password,setPassword]=useState("");
-    const [confirmPassword,setConfirmPassword]=useState("");
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
+    const [error, setError] = useState("");
+    const [submitting, setSubmitting] = useState(false);
 
-    const register=()=>{
+    useEffect(() => {
 
-        if(fullname==="" ||
-           username==="" ||
-           password===""){
+        // Registration needs its own connection to talk to the server
+        // before a "real" login happens. Re-uses the same socket
+        // instance/connection as login since ChatSocket is a singleton.
+        socket.connect(username || "anonymous_registering_user");
 
-            alert("Fill all fields");
+        const unsubscribe = socket.receive((data) => {
+
+            if (data === "REGISTER_SUCCESS") {
+                setSubmitting(false);
+                onRegisterSuccess();
+                return;
+            }
+
+            if (typeof data === "string" && data.startsWith("REGISTER_FAIL")) {
+                setSubmitting(false);
+                const reason = data.split(":").slice(1).join(":");
+                setError(reason || "Registration failed. Try a different username.");
+                return;
+            }
+
+        });
+
+        return () => unsubscribe();
+
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const handleRegister = () => {
+
+        const trimmedUser = username.trim();
+        const trimmedPass = password.trim();
+
+        if (!trimmedUser || !trimmedPass) {
+            setError("Please enter a username and password.");
             return;
         }
 
-        if(password!==confirmPassword){
+        setError("");
+        setSubmitting(true);
 
-            alert("Passwords do not match");
-            return;
+        socket.send({
+            type: "REGISTER",
+            username: trimmedUser,
+            password: trimmedPass
+        });
 
-        }
+    };
 
-        // Send data to Java Backend later
-        alert("Registered Successfully");
+    return (
 
-    }
+        <div className="auth-container">
 
-    return(
+            <div className="auth-box">
 
-        <div className="login-container">
-
-            <div className="login-card">
-
-                <h1>Create Account</h1>
-
-                <input
-                    type="text"
-                    placeholder="Full Name"
-                    value={fullname}
-                    onChange={(e)=>setFullname(e.target.value)}
-                />
+                <h2>Register</h2>
 
                 <input
                     type="text"
-                    placeholder="Username"
                     value={username}
-                    onChange={(e)=>setUsername(e.target.value)}
+                    placeholder="Username"
+                    disabled={submitting}
+                    onChange={(e) => setUsername(e.target.value)}
                 />
 
                 <input
                     type="password"
-                    placeholder="Password"
                     value={password}
-                    onChange={(e)=>setPassword(e.target.value)}
+                    placeholder="Password"
+                    disabled={submitting}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter") handleRegister();
+                    }}
                 />
 
-                <input
-                    type="password"
-                    placeholder="Confirm Password"
-                    value={confirmPassword}
-                    onChange={(e)=>setConfirmPassword(e.target.value)}
-                />
+                {error && <div className="auth-error">{error}</div>}
 
-                <button onClick={register}>
-                    Register
+                <button disabled={submitting} onClick={handleRegister}>
+                    {submitting ? "Registering..." : "Register"}
                 </button>
+
+                <div className="auth-switch">
+                    Already have an account?{" "}
+                    <button className="link-button" onClick={onGoToLogin}>
+                        Log In
+                    </button>
+                </div>
 
             </div>
 
         </div>
 
     );
-
 }
 
 export default Register;

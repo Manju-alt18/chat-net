@@ -1,100 +1,42 @@
-import { useState, useEffect } from "react";
-import Message from "./Message";
-import socket from "../services/socket";
+// NOT CONNECTED TO THE BACKEND.
+// Your server doesn't support group chat yet, so this is a UI shell
+// only — no socket calls happen here. Once the server defines a group
+// protocol (e.g. "GROUP_MSG:groupId:text" / "GROUP_MESSAGE:group:sender:text"),
+// wire this up the same way Chat.jsx is wired to private messages.
 
-function GroupChat({ username, groupName }) {
-
-    const [messages, setMessages] = useState([]);
-    const [text, setText] = useState("");
-
-    useEffect(() => {
-
-        socket.receive((data) => {
-
-            if (
-                data.type === "GROUP_MESSAGE" &&
-                data.groupName === groupName
-            ) {
-
-                setMessages((old) => [...old, data]);
-
-            }
-
-        });
-
-    }, [groupName]);
-
-    const sendMessage = () => {
-
-        if (text.trim() === "") return;
-
-        const message = {
-
-            type: "GROUP_MESSAGE",
-            sender: username,
-            groupName: groupName,
-            text: text,
-            time: new Date().toLocaleTimeString()
-
-        };
-
-        socket.send(message);
-
-        setMessages((old) => [...old, message]);
-
-        setText("");
-
-    };
+function GroupChat() {
 
     return (
 
-        <div className="chat-window">
+        <div className="chat-container">
 
-            <div className="chat-header">
+            <div className="chat-window">
 
-                <h2>👥 {groupName}</h2>
+                <div className="chat-header">
+                    <h2>Group Chat</h2>
+                </div>
 
-                <span>Group Chat</span>
+                <div className="messages">
+                    <div className="empty-chat">
+                        Group chat isn't available yet — the server doesn't
+                        support it. This screen is a placeholder.
+                    </div>
+                </div>
 
-            </div>
-
-            <div className="messages">
-
-                {messages.map((msg, index) => (
-
-                    <Message
-                        key={index}
-                        message={{
-                            sender: msg.sender,
-                            text: msg.text,
-                            time: msg.time
-                        }}
-                        currentUser={username}
+                <div className="message-box">
+                    <input
+                        type="text"
+                        placeholder="Group chat coming soon..."
+                        disabled
                     />
-
-                ))}
-
-            </div>
-
-            <div className="message-box">
-
-                <input
-                    type="text"
-                    placeholder="Type a message..."
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                />
-
-                <button onClick={sendMessage}>
-                    Send
-                </button>
+                    <button disabled>Send</button>
+                </div>
 
             </div>
 
         </div>
 
     );
-
 }
 
 export default GroupChat;
