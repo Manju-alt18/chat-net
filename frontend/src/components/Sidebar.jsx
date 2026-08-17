@@ -10,51 +10,158 @@ function Sidebar({
     const [users, setUsers] = useState([]);
     const [search, setSearch] = useState("");
 
+    const [showAddUser, setShowAddUser] =
+        useState(false);
+
+    const [newUser, setNewUser] =
+        useState("");
+
     useEffect(() => {
 
-        const handleServerMessage = (data) => {
-
-            if (data.startsWith("USER:")) {
-
-                const user = data.substring(5);
-
-                if (user && user !== username) {
-
-                    setUsers((oldUsers) => {
-
-                        if (oldUsers.includes(user)) {
-                            return oldUsers;
-                        }
-
-                        return [...oldUsers, user];
-                    });
-                }
-            }
-
-            if (data === "END") {
-                return;
-            }
-        };
-
         const removeListener =
-    socket.addMessageListener((data) => {
-            socket.getOnlineUsers();
-        }, 500);
+            socket.addMessageListener((data) => {
 
-        return () => clearTimeout(timer);
+                console.log("Sidebar:", data);
+
+                if (data === "END") {
+                    return;
+                }
+
+                if (data === "LOGIN_SUCCESS") {
+                    return;
+                }
+
+                if (data === "USER_OFFLINE") {
+                    return;
+                }
+
+                /*
+                 * Java sends online usernames:
+                 *
+                 * Alice
+                 * Bob
+                 * END
+                 */
+
+                if (
+                    data &&
+                    !data.includes(":")
+                ) {
+
+                    const user =
+                        data.trim();
+
+                    if (
+                        user &&
+                        user !== username
+                    ) {
+
+                        setUsers((oldUsers) => {
+
+                            if (
+                                oldUsers.includes(user)
+                            ) {
+                                return oldUsers;
+                            }
+
+                            return [
+                                ...oldUsers,
+                                user
+                            ];
+                        });
+                    }
+                }
+
+            });
+
+        const requestUsers =
+            setTimeout(() => {
+
+                socket.getOnlineUsers();
+
+            }, 500);
+
+        return () => {
+
+            clearTimeout(requestUsers);
+
+            removeListener();
+        };
 
     }, [username]);
 
-    const filteredUsers = users.filter((user) =>
-        user.toLowerCase().includes(
-            search.toLowerCase()
-        )
-    );
+
+    // =========================
+    // ADD USER
+    // =========================
+
+    const addUser = () => {
+
+        const name =
+            newUser.trim();
+
+        if (!name) {
+            return;
+        }
+
+        if (
+            name.toLowerCase() ===
+            username.toLowerCase()
+        ) {
+
+            alert(
+                "You cannot add yourself."
+            );
+
+            return;
+        }
+
+        const alreadyExists =
+            users.some(
+                (user) =>
+                    user.toLowerCase() ===
+                    name.toLowerCase()
+            );
+
+        if (alreadyExists) {
+
+            onSelectUser(name);
+
+            setNewUser("");
+
+            setShowAddUser(false);
+
+            return;
+        }
+
+        setUsers((oldUsers) => [
+            ...oldUsers,
+            name
+        ]);
+
+        onSelectUser(name);
+
+        setNewUser("");
+
+        setShowAddUser(false);
+    };
+
+
+    const filteredUsers =
+        users.filter((user) =>
+            user
+                .toLowerCase()
+                .includes(
+                    search.toLowerCase()
+                )
+        );
+
 
     return (
+
         <aside className="sidebar">
 
-            {/* Header */}
+            {/* HEADER */}
 
             <div className="sidebar-header">
 
@@ -62,25 +169,47 @@ function Sidebar({
 
                     <div className="avatar">
                         {username
-                            .charAt(0)
-                            .toUpperCase()}
+                            ?.charAt(0)
+                            ?.toUpperCase()}
                     </div>
 
                     <div>
-                        <h3>{username}</h3>
-                        <span>Online</span>
+
+                        <h3>
+                            {username}
+                        </h3>
+
+                        <span>
+                            Online
+                        </span>
+
                     </div>
 
                 </div>
 
-                <div className="header-icon">
-                    ⋮
+
+                <div className="sidebar-actions">
+
+                    <button
+                        className="add-user-button"
+                        onClick={() =>
+                            setShowAddUser(true)
+                        }
+                        title="Add user"
+                    >
+                        +
+                    </button>
+
+                    <div className="header-icon">
+                        ⋮
+                    </div>
+
                 </div>
 
             </div>
 
 
-            {/* Search */}
+            {/* SEARCH */}
 
             <div className="search-box">
 
@@ -88,7 +217,7 @@ function Sidebar({
 
                 <input
                     type="text"
-                    placeholder="Search or start new chat"
+                    placeholder="Search chats"
                     value={search}
                     onChange={(e) =>
                         setSearch(e.target.value)
@@ -98,7 +227,7 @@ function Sidebar({
             </div>
 
 
-            {/* Chat List */}
+            {/* USER LIST */}
 
             <div className="chat-list">
 
@@ -106,14 +235,16 @@ function Sidebar({
 
                     <div className="no-users">
 
-                        <div>👥</div>
+                        <div>
+                            👥
+                        </div>
 
                         <p>
-                            No other users online
+                            No chats yet
                         </p>
 
                         <small>
-                            Ask another user to login
+                            Click + to add a user
                         </small>
 
                     </div>
@@ -137,12 +268,13 @@ function Sidebar({
                             <div className="chat-avatar">
 
                                 {user
-                                    .charAt(0)
-                                    .toUpperCase()}
+                                    ?.charAt(0)
+                                    ?.toUpperCase()}
 
                                 <span className="online-dot" />
 
                             </div>
+
 
                             <div className="chat-info">
 
@@ -163,9 +295,100 @@ function Sidebar({
                         </div>
 
                     ))
+
                 )}
 
             </div>
+
+
+            {/* ADD USER POPUP */}
+
+            {showAddUser && (
+
+                <div
+                    className="add-user-overlay"
+                    onClick={() =>
+                        setShowAddUser(false)
+                    }
+                >
+
+                    <div
+                        className="add-user-modal"
+                        onClick={(e) =>
+                            e.stopPropagation()
+                        }
+                    >
+
+                        <div className="modal-header">
+
+                            <h3>
+                                Add New Chat
+                            </h3>
+
+                            <button
+                                onClick={() =>
+                                    setShowAddUser(false)
+                                }
+                            >
+                                ×
+                            </button>
+
+                        </div>
+
+
+                        <p>
+                            Enter the username
+                            you want to chat with.
+                        </p>
+
+
+                        <input
+                            type="text"
+                            placeholder="Username"
+                            value={newUser}
+                            autoFocus
+                            onChange={(e) =>
+                                setNewUser(
+                                    e.target.value
+                                )
+                            }
+                            onKeyDown={(e) => {
+
+                                if (
+                                    e.key === "Enter"
+                                ) {
+                                    addUser();
+                                }
+
+                            }}
+                        />
+
+
+                        <div className="modal-buttons">
+
+                            <button
+                                className="cancel-button"
+                                onClick={() =>
+                                    setShowAddUser(false)
+                                }
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                className="add-button"
+                                onClick={addUser}
+                            >
+                                Add User
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            )}
 
         </aside>
     );

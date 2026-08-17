@@ -25,18 +25,20 @@ function ChatWindow({
                 data
             );
 
-            if (data.startsWith("MESSAGE:")) {
+            if (
+    data &&
+    data.includes(":") &&
+    data !== "USER_OFFLINE"
+) {
 
-                const parts =
-                    data.split(":");
+    const separator =
+        data.indexOf(":");
 
-                const sender = parts[1];
+    const sender =
+        data.substring(0, separator).trim();
 
-                const message =
-                    parts
-                        .slice(2)
-                        .join(":");
-
+    const message =
+        data.substring(separator + 1).trim();
                 const newMessage = {
 
                     id:

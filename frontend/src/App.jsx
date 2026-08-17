@@ -1,12 +1,35 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Login from "./components/Login";
 import Sidebar from "./components/Sidebar";
 import ChatWindow from "./components/ChatWindow";
+import socket from "./services/socket";
 
 function App() {
 
     const [username, setUsername] = useState("");
-    const [selectedUser, setSelectedUser] = useState(null);
+    const [selectedUser, setSelectedUser] =
+        useState(null);
+
+    useEffect(() => {
+
+        if (!username) {
+            return;
+        }
+
+        console.log(
+            "Connecting user:",
+            username
+        );
+
+        socket.connect(username);
+
+        return () => {
+            // Don't disconnect here during development
+            // because React StrictMode can run effects twice.
+        };
+
+    }, [username]);
+
 
     if (!username) {
 
@@ -18,6 +41,7 @@ function App() {
             />
         );
     }
+
 
     return (
         <div className="app">
