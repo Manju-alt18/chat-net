@@ -1,88 +1,58 @@
-import { useEffect, useState } from "react";
-import socket from "../services/socket";
+import { useState } from "react";
 
-function Login({ onLoginSuccess, onGoToRegister }) {
+function Login({ onLogin }) {
 
     const [username, setUsername] = useState("");
-    const [error, setError] = useState("");
-    const [connecting, setConnecting] = useState(false);
 
-    useEffect(() => {
+    const handleLogin = (e) => {
 
-        const unsubscribe = socket.receive((data) => {
+        e.preventDefault();
 
-            if (data === "LOGIN_SUCCESS") {
-                setConnecting(false);
-                onLoginSuccess(username);
-                return;
-            }
+        const name = username.trim();
 
-            // ASSUMPTION — confirm the server actually sends this on
-            // failed login (e.g. duplicate username). Adjust to match.
-            if (typeof data === "string" && data.startsWith("LOGIN_FAIL")) {
-                setConnecting(false);
-                setError("Login failed. Try a different username.");
-                return;
-            }
-
-        });
-
-        return () => unsubscribe();
-
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [username]);
-
-    const handleLogin = () => {
-
-        const trimmed = username.trim();
-
-        if (!trimmed) {
-            setError("Please enter a username.");
+        if (!name) {
             return;
         }
 
-        setError("");
-        setConnecting(true);
-        socket.connect(trimmed);
-
+        onLogin(name);
     };
 
     return (
+        <div className="login-page">
 
-        <div className="auth-container">
+            <div className="login-card">
 
-            <div className="auth-box">
-
-                <h2>Log In</h2>
-
-                <input
-                    type="text"
-                    value={username}
-                    placeholder="Username"
-                    disabled={connecting}
-                    onChange={(e) => setUsername(e.target.value)}
-                    onKeyDown={(e) => {
-                        if (e.key === "Enter") handleLogin();
-                    }}
-                />
-
-                {error && <div className="auth-error">{error}</div>}
-
-                <button disabled={connecting} onClick={handleLogin}>
-                    {connecting ? "Connecting..." : "Log In"}
-                </button>
-
-                <div className="auth-switch">
-                    Don't have an account?{" "}
-                    <button className="link-button" onClick={onGoToRegister}>
-                        Register
-                    </button>
+                <div className="login-logo">
+                    💬
                 </div>
+
+                <h1>ChatApp</h1>
+
+                <p>
+                    Connect and chat with your friends
+                </p>
+
+                <form onSubmit={handleLogin}>
+
+                    <input
+                        type="text"
+                        placeholder="Enter username"
+                        value={username}
+                        onChange={(e) =>
+                            setUsername(e.target.value)
+                        }
+                        autoFocus
+                    />
+
+                    <button type="submit">
+                        Start Chat
+                    </button>
+
+                </form>
 
             </div>
 
         </div>
-
     );
 }
 

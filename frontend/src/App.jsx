@@ -1,44 +1,40 @@
 import { useState } from "react";
 import Login from "./components/Login";
-import Register from "./components/Register";
-import Chat from "./components/Chat";
-import "./App.css";
+import Sidebar from "./components/Sidebar";
+import ChatWindow from "./components/ChatWindow";
 
 function App() {
 
-    // "login" | "register" | "chat"
-    const [view, setView] = useState("login");
     const [username, setUsername] = useState("");
+    const [selectedUser, setSelectedUser] = useState(null);
 
-    const handleLoginSuccess = (loggedInUsername) => {
-        setUsername(loggedInUsername);
-        setView("chat");
-    };
+    if (!username) {
 
-    const handleRegisterSuccess = () => {
-        // Send the user to log in with their new account.
-        setView("login");
-    };
-
-    if (view === "login") {
         return (
             <Login
-                onLoginSuccess={handleLoginSuccess}
-                onGoToRegister={() => setView("register")}
+                onLogin={(name) => {
+                    setUsername(name);
+                }}
             />
         );
     }
 
-    if (view === "register") {
-        return (
-            <Register
-                onRegisterSuccess={handleRegisterSuccess}
-                onGoToLogin={() => setView("login")}
-            />
-        );
-    }
+    return (
+        <div className="app">
 
-    return <Chat username={username} />;
+            <Sidebar
+                username={username}
+                selectedUser={selectedUser}
+                onSelectUser={setSelectedUser}
+            />
+
+            <ChatWindow
+                username={username}
+                selectedUser={selectedUser}
+            />
+
+        </div>
+    );
 }
 
 export default App;

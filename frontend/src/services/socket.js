@@ -3,85 +3,167 @@ class ChatSocket {
     constructor() {
         this.socket = null;
         this.listeners = [];
+        this.statusListeners = [];
     }
 
     connect(username) {
 
-        // Don't create another connection
-        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+        if (
+            this.socket &&
+            (
+                this.socket.readyState === WebSocket.OPEN ||
+                this.socket.readyState === WebSocket.CONNECTING
+            )
+        ) {
             return;
         }
 
-        this.socket = new WebSocket("ws://localhost:8080");
+        console.log("Connecting to chat server...");
+
+        this.socket = new WebSocket(
+            "ws://localhost:8080"
+        );
 
         this.socket.onopen = () => {
+
             console.log("WebSocket connected");
-            this.socket.send("LOGIN:" + username);
-            console.log("Sent:", "LOGIN:" + username);
+
+            this.socket.send(
+                "LOGIN:" + username
+            );
+
+            this.notifyStatus("connected");
         };
 
         this.socket.onmessage = (event) => {
-            console.log("Java → React:", event.data);
-            // Notify every registered listener, not just one.
-            this.listeners.forEach((cb) => cb(event.data));
+
+            console.log(
+                "Server → React:",
+                event.data
+            );
+
+            this.listeners.forEach((listener) => {
+                listener(event.data);
+            });
         };
 
         this.socket.onerror = (error) => {
-            console.error("WebSocket error:", error);
+
+            console.error(
+                "WebSocket error:",
+                error
+            );
+
+            this.notifyStatus("error");
         };
 
         this.socket.onclose = () => {
-            console.log("WebSocket disconnected");
+
+            console.log(
+                "WebSocket disconnected"
+            );
+
+            this.notifyStatus("disconnected");
+
             this.socket = null;
         };
-
     }
 
-    send(data) {
+    sendMessage(receiver, message) {
 
-        if (!this.socket) {
-            console.error("Socket does not exist");
-            return;
+        if (
+            !this.socket ||
+            this.socket.readyState !== WebSocket.OPEN
+        ) {
+
+            console.error(
+                "Socket is not connected"
+            );
+
+            return false;
         }
 
-        if (this.socket.readyState !== WebSocket.OPEN) {
-            console.error("WebSocket is not connected");
-            return;
-        }
+        const command =
+            "MSG:" +
+            receiver +
+            ":" +
+            message;
 
-        if (data.type === "PRIVATE_MESSAGE") {
+        console.log(
+            "React → Server:",
+            command
+        );
 
-            const command = "MSG:" + data.receiver + ":" + data.text;
-            console.log("React → Java:", command);
-            this.socket.send(command);
+        this.socket.send(command);
 
-        } else if (data.type === "REGISTER") {
-
-            // ASSUMPTION — confirm this matches the server's expected format.
-            const command = "REGISTER:" + data.username + ":" + data.password;
-            console.log("React → Java:", command);
-            this.socket.send(command);
-
-        } else if (data.type === "RAW") {
-
-            // Escape hatch for any other plain-string command.
-            console.log("React → Java:", data.text);
-            this.socket.send(data.text);
-
-        }
-
+        return true;
     }
 
-    // Registers a listener and returns an unsubscribe function, so
-    // components can stop listening on unmount without closing the
-    // shared socket connection.
-    receive(callback) {
+    getOnlineUsers() {
+
+        if (
+            this.socket &&
+            this.socket.readyState === WebSocket.OPEN
+        ) {
+            this.socket.send("ONLINE");
+        }
+    }
+
+    addMessageListener(callback) {
+
         this.listeners.push(callback);
+
+        // Return cleanup function
         return () => {
-            this.listeners = this.listeners.filter((cb) => cb !== callback);
+
+            this.listeners =
+                this.listeners.filter(
+                    (listener) =>
+                        listener !== callback
+                );
         };
     }
 
+    addStatusListener(callback) {
+
+        this.statusListeners.push(callback);
+
+        return () => {
+
+            this.statusListeners =
+                this.statusListeners.filter(
+                    (listener) =>
+                        listener !== callback
+                );
+        };
+    }
+
+    notifyStatus(status) {
+
+        this.statusListeners.forEach(
+            (listener) => {
+                listener(status);
+            }
+        );
+    }
+
+    disconnect() {
+
+        if (this.socket) {
+
+            if (
+                this.socket.readyState ===
+                WebSocket.OPEN
+            ) {
+
+                this.socket.send("LOGOUT");
+            }
+
+            this.socket.close();
+
+            this.socket = null;
+        }
+    }
 }
 
 export default new ChatSocket();
