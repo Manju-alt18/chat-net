@@ -17,110 +17,138 @@ function ChatWindow({
 
     useEffect(() => {
 
-        const removeListener =
-    socket.addMessageListener((data) => {
+    const removeListener =
+        socket.addMessageListener((data) => {
 
             console.log(
-                "Message received:",
+                "ChatWindow received:",
                 data
             );
 
-            if (
-    data &&
-    data.includes(":") &&
-    data !== "USER_OFFLINE"
-) {
-
-    const separator =
-        data.indexOf(":");
-
-    const sender =
-        data.substring(0, separator).trim();
-
-    const message =
-        data.substring(separator + 1).trim();
-                const newMessage = {
-
-                    id:
-                        Date.now() +
-                        Math.random(),
-
-                    sender: sender,
-
-                    text: message,
-
-                    time:
-                        new Date()
-                            .toLocaleTimeString(
-                                [],
-                                {
-                                    hour: "2-digit",
-                                    minute: "2-digit"
-                                }
-                            )
-                };
-
-                setMessages((oldMessages) => [
-
-                    ...oldMessages,
-
-                    newMessage
-
-                ]);
-
-                // Browser notification
-                if (
-                    sender !== username &&
-                    document.hidden
-                ) {
-
-                    showNotification(
-                        sender,
-                        message
-                    );
-                }
+            if (!data) {
+                return;
             }
 
-        });
+            // Ignore non-message responses
+            if (
+                data === "LOGIN_SUCCESS" ||
+                data === "USER_OFFLINE" ||
+                data === "END"
+            ) {
+                return;
+            }
 
-    }, [username]);
+            /*
+             * Expected:
+             *
+             * MESSAGE:alice:hiiii:22:04:56
+             */
+
+            if (!data.startsWith("MESSAGE:")) {
+                return;
+            }
+
+            const content =
+                data.substring(8);
+
+            /*
+             * Find first :
+             * separates sender from message
+             */
+
+            const firstColon =
+                content.indexOf(":");
+
+            if (firstColon === -1) {
+                return;
+            }
+
+            const sender =
+                content
+                    .substring(0, firstColon)
+                    .trim();
+
+            /*
+             * Everything after sender
+             */
+
+            let remaining =
+                content.substring(
+                    firstColon + 1
+                );
+
+            /*
+             * Timestamp is at the END:
+             *
+             * 22:04:56
+             */
+
+            let time =
+                new Date().toLocaleTimeString(
+                    [],
+                    {
+                        hour: "2-digit",
+                        minute: "2-digit"
+                    }
+                );
+
+            const timeMatch =
+                remaining.match(
+                    /(\d{2}:\d{2}:\d{2})$/
+                );
+
+            if (timeMatch) {
+
+                time = timeMatch[1];
+
+                remaining =
+                    remaining
+                        .substring(
+                            0,
+                            timeMatch.index
+                        )
+                        .replace(/:$/, "");
+            }
+
+            const message =
+                remaining.trim();
+
+            if (!sender || !message) {
+                return;
+            }
 
 
-    // =========================
-    // Auto scroll
-    // =========================
+            const newMessage = {
 
-    useEffect(() => {
+                id:
+                    Date.now() +
+                    Math.random(),
 
-        messagesEndRef.current?.scrollIntoView({
-            behavior: "smooth"
-        });
+                sender: sender,
 
-    }, [messages]);
+                text: message,
+
+                time: time
+            };
 
 
-    // =========================
-    // Notification
-    // =========================
-
-    const showNotification = (
-        sender,
-        message
-    ) => {
-
-        if (
-            "Notification" in window &&
-            Notification.permission === "granted"
-        ) {
-
-            new Notification(
-                sender,
-                {
-                    body: message
-                }
+            setMessages(
+                (oldMessages) => [
+                    ...oldMessages,
+                    newMessage
+                ]
             );
-        }
+
+        });
+
+
+    return () => {
+
+        removeListener();
+
     };
+
+}, []);
 
 
     // =========================

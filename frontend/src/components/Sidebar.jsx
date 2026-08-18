@@ -23,6 +23,12 @@ function Sidebar({
 
                 console.log("Sidebar:", data);
 
+                if (
+    data.startsWith("MESSAGE:")
+) {
+    return;
+}
+
                 if (data === "END") {
                     return;
                 }

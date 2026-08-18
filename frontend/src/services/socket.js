@@ -2,8 +2,11 @@ class ChatSocket {
 
     constructor() {
         this.socket = null;
-        this.listeners = [];
-        this.statusListeners = [];
+
+        // Set prevents duplicate listeners
+        this.listeners = new Set();
+
+        this.statusListeners = new Set();
     }
 
     connect(username) {
@@ -42,9 +45,12 @@ class ChatSocket {
                 event.data
             );
 
-            this.listeners.forEach((listener) => {
-                listener(event.data);
-            });
+            // Notify each listener exactly once
+            this.listeners.forEach(
+                (listener) => {
+                    listener(event.data);
+                }
+            );
         };
 
         this.socket.onerror = (error) => {
@@ -68,6 +74,7 @@ class ChatSocket {
             this.socket = null;
         };
     }
+
 
     sendMessage(receiver, message) {
 
@@ -99,6 +106,7 @@ class ChatSocket {
         return true;
     }
 
+
     getOnlineUsers() {
 
         if (
@@ -109,34 +117,30 @@ class ChatSocket {
         }
     }
 
+
     addMessageListener(callback) {
 
-        this.listeners.push(callback);
+        this.listeners.add(callback);
 
-        // Return cleanup function
         return () => {
 
-            this.listeners =
-                this.listeners.filter(
-                    (listener) =>
-                        listener !== callback
-                );
+            this.listeners.delete(callback);
+
         };
     }
+
 
     addStatusListener(callback) {
 
-        this.statusListeners.push(callback);
+        this.statusListeners.add(callback);
 
         return () => {
 
-            this.statusListeners =
-                this.statusListeners.filter(
-                    (listener) =>
-                        listener !== callback
-                );
+            this.statusListeners.delete(callback);
+
         };
     }
+
 
     notifyStatus(status) {
 
@@ -147,15 +151,14 @@ class ChatSocket {
         );
     }
 
+
     disconnect() {
 
         if (this.socket) {
 
             if (
-                this.socket.readyState ===
-                WebSocket.OPEN
+                this.socket.readyState === WebSocket.OPEN
             ) {
-
                 this.socket.send("LOGOUT");
             }
 
